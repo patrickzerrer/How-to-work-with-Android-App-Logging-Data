@@ -1,0 +1,207 @@
+---
+title: Working Title
+author:
+  - name:
+      given: Patrick
+      family: Zerrer
+    email: pzerrer@uni-bremen.de
+    orcid: 0000-0002-8827-1336
+    affiliations:
+      - name: University of Bremen - ZeMKI
+  # tragt euch bitte ein :)
+    - name:
+      given: Max
+      family: Mustermann
+    email: max.mustermann@example.com
+    orcid: 1111-1111-1111-1111
+    affiliations:
+      - name: GESIS Leibniz Institute for the Social Sciences
+  - name:
+      given: Max
+      family: Mustermann
+    email: max.mustermann@example.com
+    orcid: 1111-1111-1111-1111
+    affiliations:
+      - name: GESIS Leibniz Institute for the Social Sciences
+bibliography: references.bib
+csl: apa.csl
+# image: img/cover.jpg
+# image-alt: Computer screen showing calculator app.
+format:
+  html: default
+  ipynb: default
+---
+
+```{r}
+#| include: false
+set.seed(721831)
+```
+
+## Learning Objectives
+
+This guide aims to provide learners with the conceptual understanding and practical skills needed to import, clean, transform, and analyse Android log data using R and the tidyverse ecosystem. By the end of the module, learners should be able to transform raw device logs into meaningful analytical datasets suitable for behavioural, usability, or digital phenotyping studies.
+
+This includes:
+
+1. Understanding the Structure of Android Log Data (e.g. Identify key variables typically found in Android logs)
+2. Data Import and preprocessing with tidyverse
+3. Operationalising exposure and media usage (e.g. session duration, app usage, ...)
+
+## Target audience
+
+This guide is designed for researchers, data analysts, and students who are interested in working with mobile sensing or digital trace data, particularly Android log files. It assumes a basic familiarity with R and the tidyverse ecosystem, including data manipulation with dplyr and data visualization with ggplot2. Participants should already understand fundamental data analysis concepts and be ready to apply them to the challenges of preprocessing and analysing complex, time-based log data.
+
+## Setting up the computational environment
+
+Install the R packages.
+
+```{r}
+#| label: install-packages
+#| eval: false
+install.packages("dplyr")
+install.packages("lubridate")
+install.packages("purrr")
+install.packages("tidyr")
+install.packages("webtrackR")
+install.packages("ggplot2")
+install.packages("nord")
+```
+
+And load the R packages.
+
+```{r}
+#| message: false
+require(dplyr)
+require(lubridate)
+require(purrr)
+require(tidyr)
+require(webtrackR)
+require(ggplot2)
+require(nord)
+```
+
+## Duration
+
+Around half a day.
+
+## Social Science Usecase(s)
+
+This method has been used in previous studies to evaluate ... [e.g. @mueller:2023:DRN].
+
+<!-- From this point on, you can use whatever headings. -->
+
+## Some Context about Android App Log Data
+
+Android app log data are automatically generated records that capture interactions between users, apps, and the operating system on Android devices. These logs originate from system services and applications that record events such as app launches, screen on/off states, foreground and background transitions, notifications, and sensor activities. They often include time-stamped information identifying the event type, the app or process involved (via package names), and contextual metadata such as battery status, network connectivity, or user interactions. 
+
+## Understanding the Data Structure
+
+Before any analysis can begin, it’s crucial to understand how the data is organized. A typical Android logging dataset includes the following variables:
+
+*panelist_id* – unique identifier for each user or device
+
+*date* – the date of the recorded event
+
+*seen_timestamp* – precise time of the event (in milliseconds or seconds)
+
+*event_type* – type of user interaction (e.g., “foreground,” “background,” “notification”)
+
+*app_name* – readable name of the application
+
+*full_package_name* – complete identifier used by the Android system (e.g., com.instagram.android)
+
+*package_name* – shortened version of the app’s identifier
+
+Understanding this schema helps ensure that all subsequent preprocessing and analysis steps are properly aligned with the data’s meaning.
+
+Let's import our dataset.
+```{r import data}
+raw_data = readRDS("data/raw_data_A.rds") 
+```
+
+
+```{r}
+glimpse(raw_data)
+```
+## Preprocessing the Data
+
+Raw log data often contains a large amount of noise from background processes and system apps that do not represent active user behavior.
+In this step, we focus on data cleaning and filtering, including:
+
+*Removing background apps* – exclude system processes or apps running without direct user engagement.
+
+*Merge consecutive visits to the same app* - sometimes apps are interrupted by system apps, which leads to a technical artifact that appears as a new app visit. To prevent these from being misinterpreted as human behavior (e.g., as intentional app access), these cases are removed.
+
+*Blacklisting apps* – recode apps that are irrelevant to the research question and are potential sensitive (e.g., health apps, banking, etc.).
+
+This ensures that further analysis is based on intentional user interactions rather than passive device operations.
+
+```{r}
+app_packages = read.csv("../data/package_app_names.csv")
+background_apps = read.csv("../data/background_system_packages.csv")
+```
+
+## Common Dimensions of Analysis
+
+To make sense of app log data, analysts typically view it through several dimensions of analysis:
+
+*Person-level* – patterns and metrics aggregated per individual or group.
+
+*Temporal* – analyses over time (hourly, daily, weekly trends).
+
+*App-level* – comparisons across apps or app categories.
+
+*Combined perspectives* – mixing dimensions, such as app use over time or per user.
+
+These dimensions frame the data exploration process and help translate raw logs into meaningful behavioral indicators.
+
+## Calculating Visits
+
+A visit represents a unit of exposure, such as a discrete instance of app use.
+
+To calculate visits, analysts define specific rules, such as when an app is opened and closed, and count occurrences accordingly. Examples include:
+
+*Overall smartphone visits* – total number of app interactions.
+
+*App-specific visits* – e.g., number of Instagram visits.
+
+*Visits over time* – temporal patterns of app openings (by hour, day, or week).
+
+Establishing a robust visit definition ensures consistent measurement of usage frequency across datasets and users.
+
+## Calculating Duration
+
+Duration reflects how long a user is exposed to an app or activity. It is another vital form of exposure that complements visit counts.
+
+Key steps include:
+
+Deriving start_time and stop_time for each event.
+
+Calculating duration per event and aggregating over time.
+
+Measuring overall smartphone duration, app-specific duration (e.g., Instagram), and temporal patterns of duration.
+
+Duration metrics reveal not only how often apps are used, but how much attention they receive.
+
+## Extracting Sequences and Sessions of Mobile Behavior
+
+User behavior unfolds as sequences of events—actions that occur in a specific order over time.
+
+In this section, we introduce three key concepts:
+
+*Event* – a single recorded action (e.g., app foregrounding).
+
+*Sequence* – a meaningful order of multiple events (e.g., unlocking phone → opening Instagram → switching to Messages).
+
+*Session* – as defined by Peng et al., a sequence of events with a defined duration that represents a coherent unit of mobile behavior.
+
+By identifying and analyzing sessions, we can capture the flow and structure of smartphone interaction, moving beyond isolated events to behavioral patterns.
+
+
+<!-- End -->
+
+## Conclusion
+
+Now you know how to do AAAA and BBBB.
+
+## References
