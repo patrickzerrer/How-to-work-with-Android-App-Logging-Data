@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+title: How to work with Android App Logging Data
+message: >-
+  If you want to cite these guidelines, please cite it as below.
+type: software
+authors:
+  - name: Zerrer, Patrick
+    website: >-
+      https://www.gesis.org/en/services/processing-and-analyzing-data/analyzing-digital-behavioral-data/gesis-methods-hub
+    email: pzerrer@uni-bremen.de
+repository-code: >-
+  https://github.com/patrickzerrer/How-to-work-with-Android-App-Logging-Data
+license: CC0-1.0
