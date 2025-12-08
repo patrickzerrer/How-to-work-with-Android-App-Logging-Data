@@ -9,7 +9,7 @@ author:
     affiliations:
       - name: University of Bremen - ZeMKI
   # tragt euch bitte ein :)
-    - name:
+  - name:
       given: Max
       family: Mustermann
     email: max.mustermann@example.com
@@ -96,7 +96,7 @@ Around half a day.
 
 ## Social Science Usecase(s)
 
-This method has been used in previous studies to evaluate information usage of Fridays for Future supporters [e.g. @Zerrer:2024], research on well-being [e.g. @Klingelhoefer:2025] and smartphone usage patterns [e.g. @Toth:2025].
+This method has been used in previous studies to evaluate information usage of Fridays for Future supporters [e.g. @Zerrer2024], research on well-being [e.g. @Klingelhoefer2025] and smartphone usage patterns [e.g. @Toth2025].
 
 <!-- From this point on, you can use whatever headings. -->
 
@@ -159,8 +159,6 @@ Raw log data often contains a large amount of noise from background processes an
 *Removing background apps* – exclude system processes or apps running without direct user engagement.
 
 *Merge consecutive visits to the same app* - sometimes apps are interrupted by system apps, which leads to a technical artifact that appears as a new app visit. To prevent these from being misinterpreted as human behavior (e.g., as intentional app access), these cases are removed.
-
-**NOTE:** Zeitlicher Abstand aktuell = 0 –\> größerer Abstand eröffnet Debatte um Artefakt vs. Handlung
 
 *Blacklisting apps* – recode apps that are irrelevant to the research question and are potential sensitive (e.g., health apps, banking, etc.). I have prepared a preliminary list of blacklisted apps for this tutorial. You can find the script for this on GitHub (blacklisted_apps.qmd).
 
@@ -260,8 +258,7 @@ most_visited_apps = blue_data_clean %>%
   # sort in descending order
   arrange(desc(visit)) %>% 
   # select the top 10 rows
-  head(n = 10) %>% 
-  kable()
+  head(n = 10)
 most_visited_apps
 ```
 
@@ -316,8 +313,7 @@ most_used_apps = blue_data_clean %>%
   # sort in descending order
   arrange(desc(duration)) %>% 
   # select the top 10 rows
-  head(n = 10) %>% 
-  kable()
+  head(n = 10) 
 most_used_apps
 ```
 
@@ -368,8 +364,7 @@ instagram_participants = blue_data_clean %>%
     cols = c(visits, duration),
     names_to = "metric",
     values_to = "value"
-  ) %>% 
-  kable()
+  ) 
 ```
 
 ```{r}
@@ -401,7 +396,7 @@ plot3
 Okay, let's try to get a better idea of what's going on in our dataset. We will examine the data at an individual level and see how Instagram usage behaviour varies between our participants across days. As I am a very visual person, I prefer plots to tables.
 
 ```{r}
-random_sample_15 = blue_data_clean %>% 
+random_sample_25 = blue_data_clean %>% 
   select(panelist_id) %>% 
   distinct() %>% 
   slice_sample(n = 25) %>% 
@@ -410,7 +405,7 @@ random_sample_15 = blue_data_clean %>%
 instagram_participants_days = blue_data_clean %>% 
   # filter for Instagram usage
   filter(app_name == "Instagram") %>% 
-  filter(panelist_id %in% random_sample_15) %>% 
+  filter(panelist_id %in% random_sample_25) %>% 
   # group by participants and date
   group_by(panelist_id, date) %>% 
   summarise(
@@ -423,20 +418,15 @@ instagram_participants_days = blue_data_clean %>%
     values_to = "value"
   )
 
-# Berechne den Mittelwert pro Teilnehmer
-participant_means = instagram_participants_days %>%
-  group_by(panelist_id) %>%
-  summarise(mean_value = mean(value, na.rm = TRUE)) 
-
-# Violin-Plot mit sortierten Teilnehmern
-ggplot(instagram_participants_days, 
-       aes(x = fct_reorder(panelist_id, value, .fun = mean, .desc = TRUE),
-           y = value,
-           fill = metric)) +
+# Boxplot-Plot 
+plot3 = ggplot(instagram_participants_days, 
+  aes(x = fct_reorder(panelist_id, value, .fun = mean, .desc = TRUE),
+      y = value,
+      fill = metric)) +
   geom_boxplot(width = 0.5, outlier.size = 1, alpha = 0.8) +
   facet_wrap(~ metric, scales = "free_y") +
   scale_fill_manual(values = c("duration" = "#5EA8AC")) +
-  coord_flip() +  # Tauscht X- und Y-Achse
+  coord_flip() +
   theme_minimal(base_size = 13, base_family = "Times New Roman") +
   theme(
     legend.position = "none",
@@ -448,6 +438,8 @@ ggplot(instagram_participants_days,
     x = "Participant",
     y = "Average Duration in Hours"
   )
+
+plot3
 ```
 
 The large variance in the data is clearly evident here. The same applies to the occurrence of extreme values. This skewed distribution is also reflected in the widely differing values for the median and the mean. Against this background, the distribution of the app tracking data should be taken into account when selecting the parameters to be calculated (mean, median, etc.).
@@ -484,7 +476,7 @@ week = blue_data_clean %>%
   )
 
 
-plot3 = ggplot(week, aes(x = date, y = value, color = metric)) +
+plot4 = ggplot(week, aes(x = date, y = value, color = metric)) +
   geom_line(linewidth = 1) +
   geom_point(size = 2) +
   scale_color_manual(
@@ -509,7 +501,7 @@ plot3 = ggplot(week, aes(x = date, y = value, color = metric)) +
     y = "Value"
   )
 
-plot3
+plot4
 ```
 
 Okay, that gives us a pretty good overview of Instagram usage over the course of the week. Now, of course, we can also select other time periods and take a closer look at them. Let's take a look at Instagram usage over the course of a day.
@@ -568,7 +560,7 @@ hourly_data = day_data %>%
   ) %>%
   mutate(metric = factor(metric, levels = "hour_share"))
 
-plot4 = ggplot(hourly_data, aes(x = hour, y = value)) +
+plot5 = ggplot(hourly_data, aes(x = hour, y = value)) +
   geom_area(fill = "#5EA8AC", alpha = 0.4) +   # Fläche unter der Linie
   geom_line(color = "#5EA8AC", linewidth = 1) +
   geom_point(color = "#5EA8AC", size = 2) +
@@ -589,7 +581,7 @@ plot4 = ggplot(hourly_data, aes(x = hour, y = value)) +
     y = "Share of hour used"
   )
 
-plot4
+plot5
 ```
 
 That looks good. However, we can go into even greater detail. Let's say we are interested in usage behavior in the mobile situation in which Instagram is used. Specifically, how long does the person use their smartphone and which apps are used before and after? To do this, we first need to consider a few conceptual issues.
@@ -602,7 +594,7 @@ In this section, we introduce three key concepts:
 
 *Sequence* – a meaningful order of multiple events (e.g., unlocking phone → opening Instagram → switching to Messages).
 
-*Session* – as defined by Peng et al. (20XX), a sequence of events with a defined duration that represents a coherent unit of mobile behavior.
+*Session* – as defined by Peng & Zhu, a sequence of events with a defined duration that represents a coherent unit of mobile behavior [@Peng2020].
 
 By identifying and analyzing sessions, we can capture the flow and structure of smartphone interaction, moving beyond isolated events to behavioral patterns.
 
@@ -691,7 +683,7 @@ app_colors = setNames(
 
 color_map = c(gap_color, app_colors)
 
-plot5 = ggplot(instagram_visual) +
+plot6 = ggplot(instagram_visual) +
   geom_segment(
     aes(
       y = bar_y,
@@ -721,7 +713,7 @@ plot5 = ggplot(instagram_visual) +
     axis.ticks.y = element_blank()
   )
 
-plot5
+plot6
 ```
 
 Here we see the sequence of visited apps within the randomly selected session.
@@ -848,8 +840,7 @@ event_types = red_data %>%
   summarise(
     n = n()
   ) %>% 
-  arrange(desc(n)) %>% 
-  kable()
+  arrange(desc(n)) 
 event_types
 ```
 
@@ -1053,8 +1044,7 @@ most_visited_apps = red_data_clean %>%
   # sort in descending order
   arrange(desc(visit)) %>% 
   # select the top 10 rows
-  head(n = 10) %>% 
-  kable()
+  head(n = 10) 
 most_visited_apps
 ```
 
@@ -1067,7 +1057,7 @@ red_n_participants = red_data_clean %>%
   ) %>% 
   pull(n_panelist)
 
-plot6 = ggplot(most_visited_apps, aes(x = reorder(app_name, visit), y = visit)) +
+plot7 = ggplot(most_visited_apps, aes(x = reorder(app_name, visit), y = visit)) +
   geom_col(width = 0.6, fill = "#BF616A") +
   coord_flip() +
   geom_text(aes(label = visit), hjust = -0.2, size = 3, family = "Times New Roman") +
@@ -1086,7 +1076,7 @@ plot6 = ggplot(most_visited_apps, aes(x = reorder(app_name, visit), y = visit)) 
     y = "Visits"
   )
 
-plot6
+plot7
 ```
 
 ### Calculating the number of shares per app
@@ -1107,7 +1097,7 @@ shares = red_coded %>%
     app_name = str_replace(app_name, "Fotos�& Videos", "Fotos & Videos")
   )
 
-plot7 = ggplot(shares, aes(x = reorder(app_name, n_shares), y = n_shares)) +
+plot8 = ggplot(shares, aes(x = reorder(app_name, n_shares), y = n_shares)) +
   geom_col(width = 0.6, fill = "#BF616A") +
   coord_flip() +
   geom_text(aes(label = n_shares), hjust = -0.2, size = 3, family = "Times New Roman") +
@@ -1126,7 +1116,7 @@ plot7 = ggplot(shares, aes(x = reorder(app_name, n_shares), y = n_shares)) +
     y = "Shares"
   )
 
-plot7
+plot8
 ```
 
 ### Calculating the number of notifications per app
@@ -1145,7 +1135,7 @@ notifications = red_coded %>%
   head(n = 5)
 
 
-plot8 = ggplot(notifications, aes(x = reorder(app_name, n_notifications), y = n_notifications)) +
+plot9 = ggplot(notifications, aes(x = reorder(app_name, n_notifications), y = n_notifications)) +
   geom_col(width = 0.6, fill = "#BF616A") +
   coord_flip() +
   geom_text(aes(label = n_notifications), hjust = -0.2, size = 3, family = "Times New Roman") +
@@ -1164,7 +1154,7 @@ plot8 = ggplot(notifications, aes(x = reorder(app_name, n_notifications), y = n_
     y = "Notifications"
   )
 
-plot8
+plot9
 ```
 I don't think it's surprising that WhatsApp sends the most notifications. 
 
