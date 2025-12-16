@@ -960,7 +960,8 @@ red_start_stop = red_coded %>%
   ) %>% 
   # calculate duration in seconds
   mutate(
-    duration = (stop_timestamp - start_timestamp) / 1000 # in seconds
+    duration = (stop_timestamp - start_timestamp) / 1000, # in seconds
+    event = "App"
   ) %>% 
   # select only relevant variables
   select(
@@ -971,6 +972,7 @@ red_start_stop = red_coded %>%
     stop_timestamp,
     duration,
     app_name,
+    event,
     package_name
   ) %>% 
   ungroup()
@@ -980,8 +982,10 @@ red_start_stop = red_coded %>%
 glimpse(red_start_stop)
 ```
 
+The usage duration of apps are not the only thing, we could analysis with Android app logging data. Let's say we are interested in push notifications. Therefore we want to include the information on notifications, shares and user interactions in our data set. We will use it later for some analysis.
+
 ```{r}
-app_meta = app_coded %>% 
+app_meta = red_coded %>% 
   filter(
     event_type %in% c(7, 9, 10, 12)
   ) %>% 
@@ -998,7 +1002,7 @@ app_meta = app_coded %>%
       .default = NA_character_)
   ) %>% 
   select(
-    participant_code,
+    panelist_id,
     date,
     datetime,
     start_time,
@@ -1011,14 +1015,17 @@ app_meta = app_coded %>%
     )
 ```
 
+Additionally, we are interested in the overall mobile screen time of our participants. The easiest way to obtain this information is to focus on the times when the screen turns on or off, as well as when the device starts up or shuts down. We prepare this data to add it to our final dataset later. 
+
+**Note:** Depending on your preferences for data management, you can either keep separate data frames or include all data in one data frame with a filter variable to easily select the necessary rows. In this tutorial, we will use a single data frame with the filter variable "event."
 ```{r}
-screen_start_stop = app_coded %>% 
+screen_start_stop = red_coded %>% 
   ungroup() %>% 
   filter(app_name == "Android-System") %>% 
   # we are not interested in the meta/config event_types, therefore we filter for start and stop 
   filter(event %in% c("Start", "Stop")) %>% 
   # group by participant_code and app_name
-  group_by(participant_code, app_name) %>% 
+  group_by(panelist_id, app_name) %>% 
   # sort rows in temporal order by participant
   arrange(seen_timestamp, .by_group = TRUE) %>% 
   # we are using the same logic as before 
@@ -1026,10 +1033,10 @@ screen_start_stop = app_coded %>%
     next_event = lead(event, n = 1L),
     next_timestamp = lead(seen_timestamp, n = 1L),
     next_app = lead(app_name, n = 1L),
-    next_panelist = lead(participant_code, n = 1L)
+    next_panelist = lead(panelist_id, n = 1L)
   ) %>% 
   filter(
-    event == "Start" & next_event == "Stop" & participant_code == next_panelist
+    event == "Start" & next_event == "Stop" & panelist_id == next_panelist
   ) %>% 
   # let's rename some variable for more convenience
   rename(
@@ -1042,11 +1049,12 @@ screen_start_stop = app_coded %>%
     start_time = as.POSIXct(start_timestamp / 1000, format = "%Y-%m-%d %H:%M:%S", tz = "Europe/Berlin"),
     end_time = as.POSIXct(stop_timestamp / 1000, format = "%Y-%m-%d %H:%M:%S", tz = "Europe/Berlin"),
     rows_merged = NA_character_,
+    # our filter variable
     event = "Screen"
   ) %>% 
   # select only relevant variables
   select(
-    participant_code,
+    panelist_id,
     date,
     datetime,
     start_time,
@@ -1092,7 +1100,7 @@ red_data_clean = red_start_stop %>%
     # - panelist_id and next_panelist_id are identical
     # - app_name and next_app_name are identical
     # - time_gap smaller than 1 sec
-    filter_var = if_else((participant_code == next_participant_code & app_name == next_app_name & time_gap <= 1), "remove", "keep"),
+    filter_var = if_else((panelist_id == next_panelist_id & app_name == next_app_name & time_gap <= 1), "remove", "keep"),
     # I like to keep an column indicating that I changed something, therefore I create 'rows_merged'
     rows_merged = if_else((lag(filter_var)) == "remove", "Yes", "No"),
     # replace 'start_time' with 'previous_start_time' for relevant rows 
@@ -1114,7 +1122,7 @@ red_data_clean = red_start_stop %>%
   bind_rows(app_meta) %>% 
   # add screen rows
   bind_rows(screen_start_stop) %>% 
-  group_by(participant_code) %>% 
+  group_by(panelist_id) %>% 
   arrange(start_time, .by_group = TRUE) %>% 
   ungroup() %>% 
   mutate(
@@ -1125,7 +1133,7 @@ red_data_clean = red_start_stop %>%
       str_squish()
   ) %>% 
   select(
-    participant_code,
+    panelist_id,
     date,
     datetime,
     start_time,
@@ -1143,7 +1151,6 @@ Now we have achieved a nice, tidy data set.
 ```{r}
 glimpse(red_data_clean)
 ```
-
 ## Calculating Visits
 
 Then we'll use this data set to determine the most frequently used apps.
@@ -1200,9 +1207,8 @@ plot7
 We have already created several plots. But now I would like to briefly draw your attention to the advantages of the unprocessed red data set. Here we have some more information than in the blue one, for example about shares and notifications. Let's take a quick look at that.
 
 ```{r}
-shares = red_coded %>% 
-  filter(!app_name == "Android-System") %>% 
-  filter(event_type == 9) %>% 
+shares = red_data_clean %>% 
+  filter(event == "Share") %>% 
   group_by(app_name) %>% 
   summarise(
     n_shares = n()
@@ -1240,9 +1246,9 @@ plot8
 And then we'll do the same thing again for notifications.
 
 ```{r}
-notifications = red_coded %>% 
-  filter(!app_name == "Android-System") %>% 
-  filter(event_type == 12) %>% 
+notifications = red_data_clean %>% 
+  filter(app_name != "android system") %>% 
+  filter(event == "Interruptive notification") %>% 
   group_by(app_name) %>% 
   summarise(
     n_notifications = n()
