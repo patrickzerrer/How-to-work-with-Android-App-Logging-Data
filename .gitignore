@@ -50,4 +50,4 @@ po/*~
 rsconnect/
 
 # rendered files
-readme_files/
+/readme_files/
